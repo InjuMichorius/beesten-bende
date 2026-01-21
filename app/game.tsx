@@ -45,6 +45,7 @@ export default function GameScreen() {
   }, [playersParam]);
 
   const currentPlayer = players[turn] || { id: "", name: "", sips: 0, pos: 0 };
+
   const currentTile =
     BOARD_TILES[currentPlayer.pos] !== undefined
       ? {
@@ -56,7 +57,7 @@ export default function GameScreen() {
         }
       : undefined;
 
-  // Logica functies (Hulp)
+  // Logica functies
   const addSips = (playerIds: string[], amount: number) => {
     setPlayers((prev) =>
       prev.map((p) =>
@@ -79,16 +80,22 @@ export default function GameScreen() {
     setIsMoving(true);
     let remaining = Math.abs(steps);
     const direction = steps > 0 ? 1 : -1;
+
     const interval = setInterval(() => {
       setPlayers((prev) => {
         const newPlayers = [...prev];
         let nextPos = newPlayers[playerIdx].pos + direction;
-        if (nextPos < 0) nextPos = BOARD_TILES.length - 1;
-        if (nextPos >= BOARD_TILES.length) nextPos = 0;
+
+        // Bounds checking
+        if (nextPos < 0) nextPos = 0;
+        if (nextPos >= BOARD_TILES.length) nextPos = BOARD_TILES.length - 1;
+
         newPlayers[playerIdx] = { ...newPlayers[playerIdx], pos: nextPos };
         return newPlayers;
       });
-      if (--remaining <= 0) {
+
+      remaining--;
+      if (remaining <= 0) {
         clearInterval(interval);
         setIsMoving(false);
         onComplete?.();
@@ -115,6 +122,29 @@ export default function GameScreen() {
     }, 100);
   };
 
+  // Logic when the modal is closed/confirmed
+  const handleActionComplete = (victims?: string[]) => {
+    // 1. Handle sips if victims provided
+    if (victims && currentTile?.sipCount) {
+      addSips(victims, currentTile.sipCount);
+    }
+
+    // 2. Close modal first
+    setShowChallenge(false);
+
+    // 3. Handle movement if tile has moveAmount
+    if (currentTile?.moveAmount) {
+      // Small delay so the modal closes before movement starts
+      setTimeout(() => {
+        animateMovement(currentTile.moveAmount!, turn, () => {
+          nextTurn();
+        });
+      }, 300);
+    } else {
+      nextTurn();
+    }
+  };
+
   if (players.length === 0) return null;
 
   return (
@@ -124,22 +154,21 @@ export default function GameScreen() {
           <ScrollView
             horizontal
             contentContainerStyle={styles.boardScrollContent}
-            showsHorizontalScrollIndicator={true} // Optioneel: laat de scrollbar zien
+            showsHorizontalScrollIndicator={true}
           >
             <View style={styles.boardGrid}>
               {BOARD_TILES.map((tile, idx) => {
                 const tileObj = {
                   ...tile,
                   id: tile.id.toString(),
-                  actionType: tile.actionType as
-                    | import("@/constants/types").ActionType
-                    | undefined,
+                  actionType: tile.actionType as any,
                 };
                 return (
                   <BoardTile
                     key={tileObj.id}
                     tile={tileObj}
                     playersOnTile={players.filter((p) => p.pos === idx)}
+                    index={idx}
                   />
                 );
               })}
@@ -156,12 +185,13 @@ export default function GameScreen() {
               style={styles.sideAvatar}
             />
             <Text style={styles.turnText}>{currentPlayer.name}</Text>
-            <View style={styles.sipBadge}>
+            <div style={styles.sipBadge}>
               <FontAwesome5 name="beer" size={14} color="#ff9800" />
               <Text style={styles.sipText}>{currentPlayer.sips} slokken</Text>
-            </View>
+            </div>
           </View>
           <TouchableOpacity
+            testID="dice-button"
             style={styles.diceButton}
             onPress={rollDice}
             disabled={isRolling || isMoving}
@@ -182,15 +212,8 @@ export default function GameScreen() {
               prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
             )
           }
-          onConfirm={(ids) => {
-            addSips(ids, currentTile.sipCount || 0);
-            setShowChallenge(false);
-            nextTurn();
-          }}
-          onClose={() => {
-            setShowChallenge(false);
-            nextTurn();
-          }}
+          onConfirm={(ids) => handleActionComplete(ids)}
+          onClose={() => handleActionComplete()}
         />
       )}
     </SafeAreaView>

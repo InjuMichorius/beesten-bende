@@ -32,6 +32,8 @@ export const ChallengeModal = ({
   const isGiveAction =
     tile.actionType === "give" || tile.actionType === "everyone";
 
+  const hasMovement = tile.moveAmount !== undefined && tile.moveAmount !== 0;
+
   const getButtonText = () => {
     if (selectedVictimIds.length === 0) return "Kies slachtoffer(s)";
     const names = players
@@ -51,9 +53,23 @@ export const ChallengeModal = ({
   return (
     <View style={styles.fullScreenOverlay}>
       <View style={styles.modalContent}>
-        <FontAwesome5 name={tile.icon} size={40} color="white" />
+        <FontAwesome5 name={tile.icon || "star"} size={40} color="white" />
         <Text style={styles.modalTitle}>{tile.name}</Text>
         <Text style={styles.modalDesc}>{tile.description}</Text>
+
+        {hasMovement && (
+          <View style={styles.moveBadge}>
+            <FontAwesome5
+              name={tile.moveAmount! > 0 ? "walking" : "undo-alt"}
+              size={14}
+              color="white"
+            />
+            <Text style={styles.moveText}>
+              {tile.moveAmount! > 0 ? `+${tile.moveAmount}` : tile.moveAmount}{" "}
+              stappen
+            </Text>
+          </View>
+        )}
 
         {isGiveAction ? (
           <View style={styles.giveContainer}>
@@ -120,7 +136,11 @@ export const ChallengeModal = ({
           </View>
         ) : (
           <View style={styles.modalButtons}>
-            <TouchableOpacity style={styles.choiceBtn} onPress={onClose}>
+            <TouchableOpacity
+              testID="close-modal"
+              style={styles.choiceBtn}
+              onPress={onClose}
+            >
               <Text style={styles.btnText}>Accepteren</Text>
             </TouchableOpacity>
           </View>
@@ -159,11 +179,22 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 20,
   },
+  moveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#3498db",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 20,
+    gap: 8,
+  },
+  moveText: { color: "white", fontWeight: "bold" },
   modalButtons: { flexDirection: "row", gap: 12 },
   choiceBtn: {
     backgroundColor: "#e74c3c",
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 30,
     borderRadius: 12,
   },
   btnText: { color: "white", fontWeight: "bold" },

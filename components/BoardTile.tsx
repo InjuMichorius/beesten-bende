@@ -6,14 +6,19 @@ import { Image, StyleSheet, View } from "react-native";
 interface BoardTileProps {
   tile: Tile;
   playersOnTile: Player[];
+  index: number;
 }
 
-export const BoardTile = ({ tile, playersOnTile }: BoardTileProps) => {
+export const BoardTile = ({ tile, playersOnTile, index }: BoardTileProps) => {
   return (
-    <View style={[styles.tile, playersOnTile.length > 0 && styles.activeTile]}>
+    <View
+      testID={`tile-${index}`}
+      style={[styles.tile, playersOnTile.length > 0 && styles.activeTile]}
+    >
       <View style={styles.avatarOverTile}>
         {playersOnTile.map((p) => (
           <Image
+            testID={`player-avatar-${p.name}`}
             key={p.id}
             source={{
               uri: `https://api.dicebear.com/7.x/bottts/png?seed=${p.name}`,
