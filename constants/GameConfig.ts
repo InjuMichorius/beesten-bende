@@ -84,5 +84,55 @@ export const BOARD_TILES = [
     sipCount: 5,
     actionType: "everyone",
   },
+  {
+    id: 10,
+    name: "Sexisitisch geneuzel",
+    icon: "mars",
+    description: "Alle mannen dirnken 3 slokken.",
+    sipCount: 3,
+    actionType: "everyone",
+  },
+  {
+    id: 11,
+    name: "Sexisitisch geneuzel",
+    icon: "venus",
+    description: "Alle vrouwen drinken 3 slokken.",
+    sipCount: 3,
+    actionType: "everyone",
+  },
+  {
+    id: 12,
+    name: "Biertonnetje rond",
+    icon: "weight-hanging",
+    description:
+      "De zwaarste speler kan het meest hebben. Drink daarom 3 slokken.",
+    sipCount: 3,
+    actionType: "everyone",
+  },
+  {
+    id: 13,
+    name: "Armpje drukken?",
+    icon: "dumbbell",
+    description:
+      "De sterkste speler mag 3 slokken uitdelen aan iedereen. Kniel!!",
+    sipCount: 3,
+    actionType: "everyone",
+  },
+  {
+    id: 14,
+    name: "Drink maatje!",
+    icon: "user-plus",
+    description:
+      "Je mag iemand uitkiezen die vanaf nu al je slokken meedrinkt.",
+    actionType: "modal",
+  },
+  {
+    id: 15,
+    name: "Item!",
+    icon: "land-mine-on",
+    description:
+      "Je hebt een landmijn gevonden! Leg deze voor het rollen van de dobbelsteen in om een valstrik te zetten voor andere spelers",
+    actionType: "modal",
+  },
   // Add more tiles as needed
 ];

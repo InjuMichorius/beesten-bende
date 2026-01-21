@@ -1,5 +1,5 @@
 import { Player, Tile } from "@/constants/types";
-import { FontAwesome5 } from "@expo/vector-icons";
+import { FontAwesome6 } from "@expo/vector-icons";
 import React from "react";
 import { Image, StyleSheet, View } from "react-native";
 
@@ -27,7 +27,7 @@ export const BoardTile = ({ tile, playersOnTile, index }: BoardTileProps) => {
           />
         ))}
       </View>
-      <FontAwesome5 name={tile.icon} size={22} color="white" />
+      <FontAwesome6 name={tile.icon} size={22} color="white" />
     </View>
   );
 };

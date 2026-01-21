@@ -1,5 +1,5 @@
 import { Player, Tile } from "@/constants/types";
-import { FontAwesome5 } from "@expo/vector-icons";
+import { FontAwesome6 } from "@expo/vector-icons";
 import React from "react";
 import {
   Image,
@@ -53,13 +53,13 @@ export const ChallengeModal = ({
   return (
     <View style={styles.fullScreenOverlay}>
       <View style={styles.modalContent}>
-        <FontAwesome5 name={tile.icon || "star"} size={40} color="white" />
+        <FontAwesome6 name={tile.icon || "star"} size={40} color="white" />
         <Text style={styles.modalTitle}>{tile.name}</Text>
         <Text style={styles.modalDesc}>{tile.description}</Text>
 
         {hasMovement && (
           <View style={styles.moveBadge}>
-            <FontAwesome5
+            <FontAwesome6
               name={tile.moveAmount! > 0 ? "walking" : "undo-alt"}
               size={14}
               color="white"

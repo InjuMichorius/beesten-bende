@@ -1,4 +1,4 @@
-import { FontAwesome5 } from "@expo/vector-icons";
+import { FontAwesome6 } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -103,7 +103,7 @@ export default function SetupScreen() {
                 onPress={addPlayer}
                 disabled={isInputEmpty}
               >
-                <FontAwesome5
+                <FontAwesome6
                   name="user-plus"
                   size={18}
                   color={isInputEmpty ? "#444" : "white"}

@@ -2,7 +2,7 @@ import { BoardTile } from "@/components/BoardTile";
 import { ChallengeModal } from "@/components/ChallengeModal";
 import { BOARD_TILES } from "@/constants/GameConfig";
 import { ActionType, Player, Tile } from "@/constants/types";
-import { FontAwesome5 } from "@expo/vector-icons";
+import { FontAwesome6 } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -218,7 +218,7 @@ export default function GameScreen() {
             />
             <Text style={styles.turnText}>{currentPlayer.name}</Text>
             <View style={styles.sipBadge}>
-              <FontAwesome5 name="beer" size={14} color="#ff9800" />
+              <FontAwesome6 name="beer" size={14} color="#ff9800" />
               <Text style={styles.sipText}>{currentPlayer.sips} slokken</Text>
             </View>
           </View>
@@ -228,7 +228,7 @@ export default function GameScreen() {
             onPress={rollDice}
             disabled={isRolling || isMoving}
           >
-            <FontAwesome5 name={diceIcon} size={40} color="white" />
+            <FontAwesome6 name={diceIcon} size={40} color="white" />
           </TouchableOpacity>
         </View>
       </View>

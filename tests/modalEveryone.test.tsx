@@ -5,7 +5,7 @@ import GameScreen from "../app/game";
 // 1. Mock icons
 jest.mock("@expo/vector-icons", () => {
   return {
-    FontAwesome5: "FontAwesome5",
+    FontAwesome6: "FontAwesome6",
   };
 });
 
