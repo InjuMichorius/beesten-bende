@@ -86,6 +86,7 @@ export const ChallengeModal = ({
                 )
                 .map((p) => (
                   <TouchableOpacity
+                    testID={`pick-victim-${p.name}`}
                     key={p.id}
                     style={[
                       styles.playerPickBtn,

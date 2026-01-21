@@ -14,13 +14,10 @@ export const ITEMS = {
 export const BOARD_TILES = [
   {
     id: 1,
-    name: "Neem 2 stappen terug",
-    icon: "arrow-left",
-    description: "Helaas je moet 2 stappen teruglopen.",
-    sipCount: 0,
+    icon: "flag-checkered",
     actionType: "modal",
-    moveAmount: 0,
   },
+  // Tested tiles
   {
     id: 2,
     name: "Neem 2 stappen terug",
@@ -28,42 +25,17 @@ export const BOARD_TILES = [
     description: "Helaas je moet 2 stappen teruglopen.",
     sipCount: 0,
     actionType: "modal",
-    moveAmount: 0,
+    moveAmount: -2,
   },
+  // Add more tiles as needed
   {
     id: 3,
-    name: "Neem 2 stappen terug",
-    icon: "arrow-left",
-    description: "Helaas je moet 2 stappen teruglopen.",
-    sipCount: 0,
-    actionType: "modal",
-    moveAmount: -2,
-  },
-  {
-    id: 4,
-    name: "Neem 2 stappen terug",
-    icon: "arrow-left",
-    description: "Helaas je moet 2 stappen teruglopen.",
-    sipCount: 0,
-    actionType: "modal",
-    moveAmount: -2,
-  },
-  {
-    id: 5,
-    name: "Neem 2 stappen terug",
-    icon: "arrow-left",
-    description: "Helaas je moet 2 stappen teruglopen.",
-    sipCount: 0,
-    actionType: "modal",
-    moveAmount: -2,
-  },
-  {
-    id: 6,
-    name: "Neem 2 stappen terug",
-    icon: "arrow-left",
-    description: "Helaas je moet 2 stappen teruglopen.",
-    sipCount: 0,
-    actionType: "modal",
-    moveAmount: -2,
+    name: "Slechte voorbereiding",
+    icon: "battery-quarter",
+    description:
+      "De speler met de laagste telefoonbatterij percentage neemt 5 slokken.",
+    sipCount: 5,
+    actionType: "everyone",
+    moveAmount: 0,
   },
 ];

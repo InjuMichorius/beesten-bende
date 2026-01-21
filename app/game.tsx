@@ -1,7 +1,7 @@
 import { BoardTile } from "@/components/BoardTile";
 import { ChallengeModal } from "@/components/ChallengeModal";
 import { BOARD_TILES } from "@/constants/GameConfig";
-import { Player } from "@/constants/types";
+import { ActionType, Player, Tile } from "@/constants/types";
 import { FontAwesome5 } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -23,6 +23,19 @@ const DICE_ICONS = [
   "dice-five",
   "dice-six",
 ];
+
+const formatTile = (tile: any, index: number): Tile => {
+  return {
+    ...tile,
+    id: tile.id?.toString() ?? String(index),
+    name: tile.name || `Vakje ${index + 1}`,
+    description: tile.description || "",
+    icon: tile.icon || "star",
+    actionType: (tile.actionType as ActionType) || "none",
+    sipCount: tile.sipCount ?? 0,
+    moveAmount: tile.moveAmount ?? 0,
+  };
+};
 
 export default function GameScreen() {
   const { players: playersParam } = useLocalSearchParams();
@@ -46,16 +59,10 @@ export default function GameScreen() {
 
   const currentPlayer = players[turn] || { id: "", name: "", sips: 0, pos: 0 };
 
-  const currentTile =
-    BOARD_TILES[currentPlayer.pos] !== undefined
-      ? {
-          ...BOARD_TILES[currentPlayer.pos],
-          id: BOARD_TILES[currentPlayer.pos].id.toString(),
-          actionType: BOARD_TILES[currentPlayer.pos].actionType as
-            | import("@/constants/types").ActionType
-            | undefined,
-        }
-      : undefined;
+  // Clean and simple
+  const currentTile = BOARD_TILES[currentPlayer.pos]
+    ? formatTile(BOARD_TILES[currentPlayer.pos], currentPlayer.pos)
+    : undefined;
 
   // Logica functies
   const addSips = (playerIds: string[], amount: number) => {
@@ -165,9 +172,28 @@ export default function GameScreen() {
             <View style={styles.boardGrid}>
               {BOARD_TILES.map((tile, idx) => {
                 const tileObj = {
-                  ...tile,
-                  id: tile.id.toString(),
-                  actionType: tile.actionType as any,
+                  id: tile.id?.toString() ?? String(idx),
+                  name:
+                    typeof tile.name === "string"
+                      ? tile.name
+                      : `Vakje ${idx + 1}`,
+                  icon: typeof tile.icon === "string" ? tile.icon : "star",
+                  description:
+                    typeof tile.description === "string"
+                      ? tile.description
+                      : "",
+                  actionType: tile.actionType as
+                    | import("@/constants/types").ActionType
+                    | undefined,
+                  sipCount:
+                    typeof tile.sipCount === "number" ? tile.sipCount : 0,
+                  sipsPerPlayer:
+                    "sipsPerPlayer" in tile &&
+                    typeof (tile as any).sipsPerPlayer === "number"
+                      ? (tile as any).sipsPerPlayer
+                      : undefined,
+                  moveAmount:
+                    typeof tile.moveAmount === "number" ? tile.moveAmount : 0,
                 };
                 return (
                   <BoardTile
@@ -191,10 +217,10 @@ export default function GameScreen() {
               style={styles.sideAvatar}
             />
             <Text style={styles.turnText}>{currentPlayer.name}</Text>
-            <div style={styles.sipBadge}>
+            <View style={styles.sipBadge}>
               <FontAwesome5 name="beer" size={14} color="#ff9800" />
               <Text style={styles.sipText}>{currentPlayer.sips} slokken</Text>
-            </div>
+            </View>
           </View>
           <TouchableOpacity
             testID="dice-button"

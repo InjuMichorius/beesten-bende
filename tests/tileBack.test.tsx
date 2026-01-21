@@ -10,11 +10,8 @@ import GameScreen from "../app/game";
 
 // 1. Mock icons
 jest.mock("@expo/vector-icons", () => {
-  const React = require("react");
-  const { View } = require("react-native");
   return {
-    FontAwesome5: (props: any) =>
-      React.createElement(View, { testID: props.name }),
+    FontAwesome5: "FontAwesome5",
   };
 });
 
@@ -29,7 +26,10 @@ jest.mock("../constants/GameConfig", () => ({
     { id: 5, name: "T5", actionType: "none" },
     {
       id: 6,
-      name: "Terug",
+      name: "Neem 2 stappen terug",
+      icon: "arrow-left",
+      description: "Helaas je moet 2 stappen teruglopen.",
+      sipCount: 0,
       actionType: "modal",
       moveAmount: -2,
     },
@@ -38,7 +38,7 @@ jest.mock("../constants/GameConfig", () => ({
 
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({
-    players: JSON.stringify([{ id: "1", name: "Speler 1", pos: 0, sips: 0 }]),
+    players: JSON.stringify([{ id: "1", name: "speler-1", pos: 0, sips: 0 }]),
   }),
 }));
 
@@ -69,7 +69,7 @@ describe("Game Movement Logica - Stap Terug", () => {
 
     // Verify player is on Tile 6 before accepting
     const tile6 = screen.getByTestId("tile-6");
-    expect(within(tile6).getByTestId("player-avatar-Speler 1")).toBeTruthy();
+    expect(within(tile6).getByTestId("player-avatar-speler-1")).toBeTruthy();
 
     // 3. Close the modal
     const closeBtn = screen.getByTestId("close-modal");
@@ -83,13 +83,13 @@ describe("Game Movement Logica - Stap Terug", () => {
     // 5. Final Verification: Check tile 4
     const tile4 = screen.getByTestId("tile-4");
 
-    // This confirms "Speler 1" is now physically inside "tile-4"
-    expect(within(tile4).getByTestId("player-avatar-Speler 1")).toBeTruthy();
+    // This confirms "speler-1" is now physically inside "tile-4"
+    expect(within(tile4).getByTestId("player-avatar-speler-1")).toBeTruthy();
 
     // Also verify they are gone from tile 6
     expect(
       within(screen.getByTestId("tile-6")).queryByTestId(
-        "player-avatar-Speler 1",
+        "player-avatar-speler-1",
       ),
     ).toBeNull();
   });
