@@ -114,9 +114,15 @@ export default function GameScreen() {
         const roll = Math.floor(Math.random() * 6) + 1;
         setDiceIcon(DICE_ICONS[roll - 1]);
         setIsRolling(false);
+
         setTimeout(
-          () => animateMovement(roll, turn, () => setShowChallenge(true)),
-          800,
+          () =>
+            animateMovement(roll, turn, () =>
+              setTimeout(() => {
+                setShowChallenge(true);
+              }, 400),
+            ),
+          400,
         );
       }
     }, 100);
