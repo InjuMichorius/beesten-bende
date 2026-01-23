@@ -19,6 +19,7 @@ export const BOARD_TILES: Tile[] = [
     description:
       "Je hebt een landmijn gevonden! Leg deze voor het rollen van de dobbelsteen in om een valstrik te zetten voor andere spelers",
     actionType: "modal",
+    occurrence: 5,
   },
   {
     id: 2,
