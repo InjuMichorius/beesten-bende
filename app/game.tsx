@@ -1,15 +1,13 @@
-import { BOARD_TILES } from "@/constants/BOARD_TILES";
-import { ITEMS } from "@/constants/ITEMS";
-
-import { generateBoard } from "../utils/BoardGenerator";
-
 import { BoardTile } from "@/components/BoardTile";
 import { ChallengeModal } from "@/components/ChallengeModal";
+import { BOARD_TILES } from "@/constants/BOARD_TILES";
+import { ITEMS } from "@/constants/ITEMS";
 import { ActionType, Player, Tile } from "@/constants/types";
 import { FontAwesome6 } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Dimensions,
   Image,
   SafeAreaView,
   ScrollView,
@@ -18,6 +16,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { generateBoard } from "../utils/BoardGenerator";
+
+const LEFT_PANEL_WIDTH = Dimensions.get("window").width - 180;
 
 const DICE_ICONS = [
   "dice-one",
@@ -49,32 +50,16 @@ const formatTile = (tile: any, index: number): Tile => {
   };
 };
 
-/**
- * SUB-COMPONENT: INVENTORY
- * Rendert de lijst met items in het rechter paneel
- */
-const Inventory = ({
-  items,
-  activeItemId,
-  onItemPress,
-  isDisabled,
-}: {
-  items: string[];
-  activeItemId: string | null;
-  onItemPress: (id: string) => void;
-  isDisabled: boolean;
-}) => {
+const Inventory = ({ items, activeItemId, onItemPress, isDisabled }: any) => {
   if (items.length === 0) return null;
-
   return (
     <View style={inventoryStyles.container}>
       <Text style={inventoryStyles.header}>Inventory</Text>
       <ScrollView contentContainerStyle={inventoryStyles.list}>
-        {items.map((itemId, index) => {
+        {items.map((itemId: string, index: number) => {
           const item = ITEMS[itemId];
           if (!item) return null;
           const isActive = activeItemId === itemId;
-
           return (
             <TouchableOpacity
               key={`${itemId}-${index}`}
@@ -112,10 +97,15 @@ const Inventory = ({
 
 export default function GameScreen() {
   const board = useMemo(() => generateBoard(BOARD_TILES), []);
-
   const { players: playersParam } = useLocalSearchParams();
 
-  // State
+  // Refs voor scrolling
+  const scrollRef = useRef<ScrollView>(null);
+  const tilePositions = useRef<{ [key: number]: { x: number; width: number } }>(
+    {},
+  );
+  const currentScrollX = useRef(0);
+
   const [players, setPlayers] = useState<(Player & { inventory: string[] })[]>(
     [],
   );
@@ -125,8 +115,6 @@ export default function GameScreen() {
   const [isMoving, setIsMoving] = useState(false);
   const [diceIcon, setDiceIcon] = useState("dice");
   const [selectedVictimIds, setSelectedVictimIds] = useState<string[]>([]);
-
-  // Item & Trap State
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [activeMines, setActiveMines] = useState<
     { tileIndex: number; ownerId: string }[]
@@ -135,7 +123,6 @@ export default function GameScreen() {
 
   const isPlacingMine = activeItemId === "landmine";
 
-  // Init
   useEffect(() => {
     if (playersParam && typeof playersParam === "string") {
       const parsed = JSON.parse(playersParam);
@@ -153,17 +140,29 @@ export default function GameScreen() {
     inventory: [],
   };
 
-  const currentTile = useMemo(() => {
-    if (mineHit) return MINE_TRIGGER_TILE;
+  // Helper om te checken of een vakje in beeld is
+  const ensureTileInView = (tileIndex: number) => {
+    const tileData = tilePositions.current[tileIndex];
+    if (!tileData || !scrollRef.current) return;
 
-    const rawTileOnPos = board[currentPlayer.pos];
+    const tileLeft = tileData.x;
+    const tileRight = tileData.x + tileData.width;
+    const viewLeft = currentScrollX.current;
+    const viewRight = currentScrollX.current + LEFT_PANEL_WIDTH;
 
-    if (rawTileOnPos) {
-      return formatTile(rawTileOnPos, currentPlayer.pos);
+    // Als het vakje buiten de linker- of rechterkant van het paneel valt
+    if (tileLeft < viewLeft || tileRight > viewRight) {
+      scrollRef.current.scrollTo({
+        x: Math.max(0, tileLeft - 20),
+        animated: true,
+      });
     }
+  };
 
-    return undefined;
-  }, [currentPlayer.pos, mineHit, board]);
+  // Scroll bij start van de beurt
+  useEffect(() => {
+    setTimeout(() => ensureTileInView(currentPlayer.pos), 100);
+  }, [turn, currentPlayer.pos]);
 
   const addSips = (playerIds: string[], amount: number) => {
     setPlayers((prev) =>
@@ -182,16 +181,11 @@ export default function GameScreen() {
   };
 
   const handleItemAction = (itemId: string) => {
-    if (activeItemId === itemId) {
-      setActiveItemId(null);
-    } else {
-      setActiveItemId(itemId);
-    }
+    setActiveItemId(activeItemId === itemId ? null : itemId);
   };
 
   const handlePlaceMine = (tileIndex: number) => {
     if (!isPlacingMine) return;
-
     setActiveMines((prev) => [
       ...prev,
       { tileIndex, ownerId: currentPlayer.id },
@@ -225,18 +219,19 @@ export default function GameScreen() {
       setPlayers((prev) => {
         const newPlayers = [...prev];
         let nextPos = newPlayers[playerIdx].pos + direction;
-
         if (nextPos < 0) nextPos = 0;
         if (nextPos >= BOARD_TILES.length) nextPos = BOARD_TILES.length - 1;
 
         newPlayers[playerIdx] = { ...newPlayers[playerIdx], pos: nextPos };
+
+        // TIJDENS LOPEN: Check of we uit beeld lopen
+        ensureTileInView(nextPos);
 
         const trap = activeMines.find(
           (m) =>
             m.tileIndex === nextPos && m.ownerId !== newPlayers[playerIdx].id,
         );
         if (trap) trapTriggered = true;
-
         return newPlayers;
       });
 
@@ -245,7 +240,6 @@ export default function GameScreen() {
         clearInterval(interval);
         setIsMoving(false);
         onComplete?.(trapTriggered);
-
         if (trapTriggered) {
           setActiveMines((prev) =>
             prev.filter(
@@ -268,7 +262,6 @@ export default function GameScreen() {
         const roll = Math.floor(Math.random() * 6) + 1;
         setDiceIcon(DICE_ICONS[roll - 1]);
         setIsRolling(false);
-
         setTimeout(
           () =>
             animateMovement(roll, turn, (hit) => {
@@ -282,34 +275,39 @@ export default function GameScreen() {
   };
 
   const handleActionComplete = (victims?: string[]) => {
-    if (!mineHit && currentTile?.id === "15") {
+    if (!mineHit && currentTileObj?.id === "15") {
       setPlayers((prev) =>
         prev.map((p, idx) =>
           idx === turn ? { ...p, inventory: [...p.inventory, "landmine"] } : p,
         ),
       );
     }
-
-    if (victims && currentTile?.sipCount) {
-      addSips(victims, currentTile.sipCount);
-    } else if (mineHit) {
-      addSips([currentPlayer.id], MINE_TRIGGER_TILE.sipCount!);
-    }
+    if (victims && currentTileObj?.sipCount)
+      addSips(victims, currentTileObj.sipCount);
+    else if (mineHit) addSips([currentPlayer.id], MINE_TRIGGER_TILE.sipCount!);
 
     setShowChallenge(false);
-
-    if (!mineHit && currentTile?.moveAmount) {
-      setTimeout(() => {
-        animateMovement(currentTile.moveAmount!, turn, (hit) => {
-          if (hit) setMineHit(true);
-          if (hit) setShowChallenge(true);
-          else nextTurn();
-        });
-      }, 300);
-    } else {
-      nextTurn();
-    }
+    if (!mineHit && currentTileObj?.moveAmount) {
+      setTimeout(
+        () =>
+          animateMovement(currentTileObj.moveAmount!, turn, (hit) => {
+            if (hit) {
+              setMineHit(true);
+              setShowChallenge(true);
+            } else nextTurn();
+          }),
+        300,
+      );
+    } else nextTurn();
   };
+
+  const currentTileObj = useMemo(() => {
+    if (mineHit) return MINE_TRIGGER_TILE;
+    const rawTileOnPos = board[currentPlayer.pos];
+    return rawTileOnPos
+      ? formatTile(rawTileOnPos, currentPlayer.pos)
+      : undefined;
+  }, [currentPlayer.pos, mineHit, board]);
 
   if (players.length === 0) return null;
 
@@ -318,19 +316,30 @@ export default function GameScreen() {
       <View style={styles.mainWrapper}>
         <View style={styles.leftPanel}>
           <ScrollView
+            ref={scrollRef}
             horizontal
+            showsHorizontalScrollIndicator={false}
+            onScroll={(e) => {
+              currentScrollX.current = e.nativeEvent.contentOffset.x;
+            }}
+            scrollEventThrottle={16}
             contentContainerStyle={styles.boardScrollContent}
           >
             <View style={styles.boardGrid}>
               {board.map((tile, idx) => {
                 const tileObj = formatTile(tile, idx);
                 const hasMine = activeMines.some((m) => m.tileIndex === idx);
-
                 return (
                   <TouchableOpacity
                     key={tileObj.id}
                     disabled={!isPlacingMine || hasMine}
                     onPress={() => handlePlaceMine(idx)}
+                    onLayout={(e) => {
+                      tilePositions.current[idx] = {
+                        x: e.nativeEvent.layout.x,
+                        width: e.nativeEvent.layout.width,
+                      };
+                    }}
                   >
                     <BoardTile
                       tile={tileObj}
@@ -361,7 +370,6 @@ export default function GameScreen() {
             </View>
           </View>
 
-          {/* De nieuwe Inventory Component */}
           <Inventory
             items={currentPlayer.inventory}
             activeItemId={activeItemId}
@@ -370,6 +378,7 @@ export default function GameScreen() {
           />
 
           <TouchableOpacity
+            testID="dice-button"
             style={[styles.diceButton, !!activeItemId && styles.disabledDice]}
             onPress={rollDice}
             disabled={isRolling || isMoving || !!activeItemId}
@@ -379,9 +388,9 @@ export default function GameScreen() {
         </View>
       </View>
 
-      {showChallenge && currentTile && (
+      {showChallenge && currentTileObj && (
         <ChallengeModal
-          tile={currentTile}
+          tile={currentTileObj}
           players={players}
           currentPlayer={currentPlayer}
           selectedVictimIds={selectedVictimIds}
@@ -433,18 +442,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 20,
   },
-  boardGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: 15,
-    padding: 20,
-  },
-  boardScrollContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  boardGrid: { flexDirection: "row", flexWrap: "nowrap", gap: 15, padding: 20 },
+  boardScrollContent: { alignItems: "center" },
   turnInfo: { alignItems: "center" },
   sideAvatar: {
     width: 70,

@@ -10,7 +10,7 @@ jest.mock("@expo/vector-icons", () => {
 });
 
 // 2. Mock Config: Speler 1 moet 1 gooien om op index 1 te landen
-jest.mock("../constants/GameConfig", () => ({
+jest.mock("../constants/BOARD_TILES", () => ({
   BOARD_TILES: [
     { id: 0, name: "Start", actionType: "none" },
     {

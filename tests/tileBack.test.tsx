@@ -16,7 +16,7 @@ jest.mock("@expo/vector-icons", () => {
 });
 
 // 2. Mock Config
-jest.mock("../constants/GameConfig", () => ({
+jest.mock("../constants/BOARD_TILES", () => ({
   BOARD_TILES: [
     { id: 0, name: "Start", actionType: "none" },
     { id: 1, name: "T1", actionType: "none" },
