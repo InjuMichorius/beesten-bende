@@ -1,6 +1,6 @@
 import { BoardTile } from "@/components/BoardTile";
 import { ChallengeModal } from "@/components/ChallengeModal";
-import { BOARD_TILES } from "@/constants/GameConfig";
+import { BOARD_TILES, ITEMS } from "@/constants/GameConfig";
 import { ActionType, Player, Tile } from "@/constants/types";
 import { FontAwesome6 } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
@@ -45,6 +45,67 @@ const formatTile = (tile: any, index: number): Tile => {
   };
 };
 
+/**
+ * SUB-COMPONENT: INVENTORY
+ * Rendert de lijst met items in het rechter paneel
+ */
+const Inventory = ({
+  items,
+  activeItemId,
+  onItemPress,
+  isDisabled,
+}: {
+  items: string[];
+  activeItemId: string | null;
+  onItemPress: (id: string) => void;
+  isDisabled: boolean;
+}) => {
+  if (items.length === 0) return null;
+
+  return (
+    <View style={inventoryStyles.container}>
+      <Text style={inventoryStyles.header}>Inventory</Text>
+      <ScrollView contentContainerStyle={inventoryStyles.list}>
+        {items.map((itemId, index) => {
+          const item = ITEMS[itemId];
+          if (!item) return null;
+          const isActive = activeItemId === itemId;
+
+          return (
+            <TouchableOpacity
+              key={`${itemId}-${index}`}
+              style={[
+                inventoryStyles.itemCard,
+                isActive && {
+                  borderColor: item.color,
+                  backgroundColor: `${item.color}22`,
+                },
+                isDisabled && { opacity: 0.5 },
+              ]}
+              onPress={() => onItemPress(itemId)}
+              disabled={isDisabled}
+            >
+              <FontAwesome6
+                name={item.icon}
+                size={16}
+                color={isActive ? item.color : "white"}
+              />
+              <Text
+                style={[
+                  inventoryStyles.itemName,
+                  isActive && { color: item.color },
+                ]}
+              >
+                {item.name}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+};
+
 export default function GameScreen() {
   const { players: playersParam } = useLocalSearchParams();
 
@@ -59,12 +120,14 @@ export default function GameScreen() {
   const [diceIcon, setDiceIcon] = useState("dice");
   const [selectedVictimIds, setSelectedVictimIds] = useState<string[]>([]);
 
-  // New State for Landmines
+  // Item & Trap State
+  const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [activeMines, setActiveMines] = useState<
     { tileIndex: number; ownerId: string }[]
   >([]);
-  const [isPlacingMine, setIsPlacingMine] = useState(false);
   const [mineHit, setMineHit] = useState(false);
+
+  const isPlacingMine = activeItemId === "landmine";
 
   // Init
   useEffect(() => {
@@ -84,7 +147,6 @@ export default function GameScreen() {
     inventory: [],
   };
 
-  // Determine which tile info to show in the modal
   const currentTile = useMemo(() => {
     if (mineHit) return MINE_TRIGGER_TILE;
     return BOARD_TILES[currentPlayer.pos]
@@ -104,8 +166,16 @@ export default function GameScreen() {
     setTurn((prev) => (prev + 1) % players.length);
     setDiceIcon("dice");
     setSelectedVictimIds([]);
-    setIsPlacingMine(false);
+    setActiveItemId(null);
     setMineHit(false);
+  };
+
+  const handleItemAction = (itemId: string) => {
+    if (activeItemId === itemId) {
+      setActiveItemId(null);
+    } else {
+      setActiveItemId(itemId);
+    }
   };
 
   const handlePlaceMine = (tileIndex: number) => {
@@ -120,12 +190,14 @@ export default function GameScreen() {
         idx === turn
           ? {
               ...p,
-              inventory: p.inventory.filter((item) => item !== "landmine"),
+              inventory: p.inventory.filter(
+                (_, i) => i !== p.inventory.indexOf("landmine"),
+              ),
             }
           : p,
       ),
     );
-    setIsPlacingMine(false);
+    setActiveItemId(null);
   };
 
   const animateMovement = (
@@ -136,7 +208,7 @@ export default function GameScreen() {
     setIsMoving(true);
     let remaining = Math.abs(steps);
     const direction = steps > 0 ? 1 : -1;
-    let hitMine = false;
+    let trapTriggered = false;
 
     const interval = setInterval(() => {
       setPlayers((prev) => {
@@ -148,27 +220,22 @@ export default function GameScreen() {
 
         newPlayers[playerIdx] = { ...newPlayers[playerIdx], pos: nextPos };
 
-        // Check for mines (excluding mines placed by the current player)
         const trap = activeMines.find(
           (m) =>
             m.tileIndex === nextPos && m.ownerId !== newPlayers[playerIdx].id,
         );
-        if (trap) {
-          hitMine = true;
-        }
+        if (trap) trapTriggered = true;
 
         return newPlayers;
       });
 
       remaining--;
-      // If we hit a mine, we stop moving immediately
-      if (remaining <= 0 || hitMine) {
+      if (remaining <= 0 || trapTriggered) {
         clearInterval(interval);
         setIsMoving(false);
-        onComplete?.(hitMine);
+        onComplete?.(trapTriggered);
 
-        // Remove the mine after it's triggered
-        if (hitMine) {
+        if (trapTriggered) {
           setActiveMines((prev) =>
             prev.filter(
               (m) => m.tileIndex !== players[playerIdx].pos + direction,
@@ -180,7 +247,7 @@ export default function GameScreen() {
   };
 
   const rollDice = () => {
-    if (isRolling || isMoving || showChallenge || isPlacingMine) return;
+    if (isRolling || isMoving || showChallenge || activeItemId) return;
     setIsRolling(true);
     let i = 0;
     const interval = setInterval(() => {
@@ -204,7 +271,6 @@ export default function GameScreen() {
   };
 
   const handleActionComplete = (victims?: string[]) => {
-    // Check if player landed on landmine item tile (ID 15)
     if (!mineHit && currentTile?.id === "15") {
       setPlayers((prev) =>
         prev.map((p, idx) =>
@@ -216,7 +282,6 @@ export default function GameScreen() {
     if (victims && currentTile?.sipCount) {
       addSips(victims, currentTile.sipCount);
     } else if (mineHit) {
-      // If it was a mine hit and no victims selected, the current player drinks
       addSips([currentPlayer.id], MINE_TRIGGER_TILE.sipCount!);
     }
 
@@ -235,6 +300,8 @@ export default function GameScreen() {
     }
   };
 
+  if (players.length === 0) return null;
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.mainWrapper}>
@@ -251,7 +318,6 @@ export default function GameScreen() {
                 return (
                   <TouchableOpacity
                     key={tileObj.id}
-                    // Je kunt alleen klikken als je in de modus bent én er nog geen mijn ligt
                     disabled={!isPlacingMine || hasMine}
                     onPress={() => handlePlaceMine(idx)}
                   >
@@ -259,8 +325,8 @@ export default function GameScreen() {
                       tile={tileObj}
                       playersOnTile={players.filter((p) => p.pos === idx)}
                       index={idx}
-                      isPlacingMode={isPlacingMine} // Activeert de previews rechtsonder
-                      hasMine={hasMine} // Activeert de rode border en solide badge
+                      isPlacingMode={isPlacingMine}
+                      hasMine={hasMine}
                     />
                   </TouchableOpacity>
                 );
@@ -284,28 +350,18 @@ export default function GameScreen() {
             </View>
           </View>
 
-          {/* Landmine Item Button */}
-          {currentPlayer.inventory.includes("landmine") &&
-            !isMoving &&
-            !isRolling && (
-              <TouchableOpacity
-                style={[
-                  styles.itemButton,
-                  isPlacingMine && styles.itemButtonActive,
-                ]}
-                onPress={() => setIsPlacingMine(!isPlacingMine)}
-              >
-                <FontAwesome6 name="land-mine-on" size={20} color="white" />
-                <Text style={styles.itemButtonText}>
-                  {isPlacingMine ? "Kies Vakje" : "Zet Val"}
-                </Text>
-              </TouchableOpacity>
-            )}
+          {/* De nieuwe Inventory Component */}
+          <Inventory
+            items={currentPlayer.inventory}
+            activeItemId={activeItemId}
+            onItemPress={handleItemAction}
+            isDisabled={isMoving || isRolling}
+          />
 
           <TouchableOpacity
-            style={[styles.diceButton, isPlacingMine && styles.disabledDice]}
+            style={[styles.diceButton, !!activeItemId && styles.disabledDice]}
             onPress={rollDice}
-            disabled={isRolling || isMoving || isPlacingMine}
+            disabled={isRolling || isMoving || !!activeItemId}
           >
             <FontAwesome6 name={diceIcon} size={40} color="white" />
           </TouchableOpacity>
@@ -331,16 +387,39 @@ export default function GameScreen() {
   );
 }
 
+const inventoryStyles = StyleSheet.create({
+  container: { width: "90%", flex: 1, marginTop: 20 },
+  header: {
+    color: "#666",
+    fontSize: 10,
+    fontWeight: "bold",
+    marginBottom: 10,
+    textTransform: "uppercase",
+    textAlign: "center",
+  },
+  list: { gap: 10 },
+  itemCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1a1a1a",
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#333",
+    gap: 10,
+  },
+  itemName: { color: "white", fontSize: 12, fontWeight: "bold" },
+});
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000" },
   mainWrapper: { flex: 1, flexDirection: "row" },
   leftPanel: { flex: 1 },
   rightPanel: {
-    width: 200,
+    width: 180,
     borderLeftWidth: 1,
     borderColor: "#222",
     alignItems: "center",
-    justifyContent: "space-around",
     paddingVertical: 20,
   },
   boardGrid: {
@@ -380,43 +459,15 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   diceButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     backgroundColor: "#111",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#FFF",
+    marginTop: "auto",
   },
   disabledDice: { opacity: 0.3 },
-  itemButton: {
-    alignItems: "center",
-    backgroundColor: "#444",
-    padding: 10,
-    borderRadius: 12,
-    width: 80,
-  },
-  itemButtonActive: {
-    backgroundColor: "#e74c3c",
-    borderWidth: 1,
-    borderColor: "white",
-  },
-  itemButtonText: {
-    color: "white",
-    fontSize: 10,
-    marginTop: 4,
-    fontWeight: "bold",
-  },
-  placingHighlight: { borderColor: "#e74c3c", borderWidth: 2 },
-  mineIndicator: {
-    position: "absolute",
-    bottom: -5,
-    right: -5,
-    backgroundColor: "black",
-    borderRadius: 10,
-    padding: 2,
-    borderWidth: 1,
-    borderColor: "red",
-  },
 });
