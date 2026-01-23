@@ -1,6 +1,6 @@
 import { ActionType } from "./types";
 
-export interface RawTile {
+export interface Tile {
   id: number;
   name: string;
   icon: string;
@@ -8,12 +8,16 @@ export interface RawTile {
   actionType: ActionType;
   sipCount?: number;
   moveAmount?: number;
+  occurrence?: number;
 }
 
-export const BOARD_TILES = [
+export const BOARD_TILES: Tile[] = [
   {
     id: 1,
-    icon: "flag",
+    name: "Item!",
+    icon: "land-mine-on",
+    description:
+      "Je hebt een landmijn gevonden! Leg deze voor het rollen van de dobbelsteen in om een valstrik te zetten voor andere spelers",
     actionType: "modal",
   },
   {
@@ -23,6 +27,7 @@ export const BOARD_TILES = [
     description: "Hoera! Je mag 2 stappen vooruitlopen.",
     actionType: "modal",
     moveAmount: 2,
+    occurrence: 2,
   },
   {
     id: 3,
@@ -31,6 +36,7 @@ export const BOARD_TILES = [
     description: "Helaas je moet 2 stappen teruglopen.",
     actionType: "modal",
     moveAmount: -2,
+    occurrence: 4,
   },
   {
     id: 4,
@@ -124,20 +130,6 @@ export const BOARD_TILES = [
     description:
       "Je mag iemand uitkiezen die vanaf nu al je slokken meedrinkt.",
     actionType: "modal",
-  },
-  {
-    id: 15,
-    name: "Item!",
-    icon: "land-mine-on",
-    description:
-      "Je hebt een landmijn gevonden! Leg deze voor het rollen van de dobbelsteen in om een valstrik te zetten voor andere spelers",
-    actionType: "modal",
-  },
-  {
-    id: 16,
-    icon: "flag-checkered",
-    actionType: "modal",
-    description: "Gefeliciteerd! Je hebt het einde van het spel bereikt!",
   },
   // Add more tiles as needed
 ];

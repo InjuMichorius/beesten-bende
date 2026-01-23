@@ -6,7 +6,7 @@ export type Player = {
   inventory: string[];
 };
 
-export type ActionType = "self" | "give" | "everyone" | "info";
+export type ActionType = "self" | "give" | "everyone" | "info" | "modal";
 
 export type Tile = {
   id: string;

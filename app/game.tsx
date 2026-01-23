@@ -1,6 +1,8 @@
 import { BOARD_TILES } from "@/constants/BOARD_TILES";
 import { ITEMS } from "@/constants/ITEMS";
 
+import { generateBoard } from "../utils/BoardGenerator";
+
 import { BoardTile } from "@/components/BoardTile";
 import { ChallengeModal } from "@/components/ChallengeModal";
 import { ActionType, Player, Tile } from "@/constants/types";
@@ -109,6 +111,8 @@ const Inventory = ({
 };
 
 export default function GameScreen() {
+  const board = useMemo(() => generateBoard(BOARD_TILES), []);
+
   const { players: playersParam } = useLocalSearchParams();
 
   // State
@@ -151,10 +155,15 @@ export default function GameScreen() {
 
   const currentTile = useMemo(() => {
     if (mineHit) return MINE_TRIGGER_TILE;
-    return BOARD_TILES[currentPlayer.pos]
-      ? formatTile(BOARD_TILES[currentPlayer.pos], currentPlayer.pos)
-      : undefined;
-  }, [currentPlayer.pos, mineHit]);
+
+    const rawTileOnPos = board[currentPlayer.pos];
+
+    if (rawTileOnPos) {
+      return formatTile(rawTileOnPos, currentPlayer.pos);
+    }
+
+    return undefined;
+  }, [currentPlayer.pos, mineHit, board]);
 
   const addSips = (playerIds: string[], amount: number) => {
     setPlayers((prev) =>
@@ -313,7 +322,7 @@ export default function GameScreen() {
             contentContainerStyle={styles.boardScrollContent}
           >
             <View style={styles.boardGrid}>
-              {BOARD_TILES.map((tile, idx) => {
+              {board.map((tile, idx) => {
                 const tileObj = formatTile(tile, idx);
                 const hasMine = activeMines.some((m) => m.tileIndex === idx);
 
