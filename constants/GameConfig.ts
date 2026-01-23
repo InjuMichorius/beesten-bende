@@ -14,7 +14,7 @@ export const ITEMS = {
 export const BOARD_TILES = [
   {
     id: 1,
-    icon: "flag-checkered",
+    icon: "flag",
     actionType: "modal",
   },
   {
@@ -133,6 +133,12 @@ export const BOARD_TILES = [
     description:
       "Je hebt een landmijn gevonden! Leg deze voor het rollen van de dobbelsteen in om een valstrik te zetten voor andere spelers",
     actionType: "modal",
+  },
+  {
+    id: 16,
+    icon: "flag-checkered",
+    actionType: "modal",
+    description: "Gefeliciteerd! Je hebt het einde van het spel bereikt!",
   },
   // Add more tiles as needed
 ];

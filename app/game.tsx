@@ -4,7 +4,7 @@ import { BOARD_TILES } from "@/constants/GameConfig";
 import { ActionType, Player, Tile } from "@/constants/types";
 import { FontAwesome6 } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Image,
   SafeAreaView,
@@ -24,6 +24,14 @@ const DICE_ICONS = [
   "dice-six",
 ];
 
+const MINE_TRIGGER_TILE: Tile = {
+  id: "mine-hit",
+  name: "BOEM!",
+  description: "Je bent op een landmijn gestapt! Neem 5 slokken.",
+  icon: "bomb",
+  sipCount: 5,
+};
+
 const formatTile = (tile: any, index: number): Tile => {
   return {
     ...tile,
@@ -41,7 +49,9 @@ export default function GameScreen() {
   const { players: playersParam } = useLocalSearchParams();
 
   // State
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [players, setPlayers] = useState<(Player & { inventory: string[] })[]>(
+    [],
+  );
   const [turn, setTurn] = useState(0);
   const [showChallenge, setShowChallenge] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
@@ -49,22 +59,39 @@ export default function GameScreen() {
   const [diceIcon, setDiceIcon] = useState("dice");
   const [selectedVictimIds, setSelectedVictimIds] = useState<string[]>([]);
 
+  // New State for Landmines
+  const [activeMines, setActiveMines] = useState<
+    { tileIndex: number; ownerId: string }[]
+  >([]);
+  const [isPlacingMine, setIsPlacingMine] = useState(false);
+  const [mineHit, setMineHit] = useState(false);
+
   // Init
   useEffect(() => {
     if (playersParam && typeof playersParam === "string") {
       const parsed = JSON.parse(playersParam);
-      setPlayers(parsed.map((p: any) => ({ ...p, pos: 0, sips: 0 })));
+      setPlayers(
+        parsed.map((p: any) => ({ ...p, pos: 0, sips: 0, inventory: [] })),
+      );
     }
   }, [playersParam]);
 
-  const currentPlayer = players[turn] || { id: "", name: "", sips: 0, pos: 0 };
+  const currentPlayer = players[turn] || {
+    id: "",
+    name: "",
+    sips: 0,
+    pos: 0,
+    inventory: [],
+  };
 
-  // Clean and simple
-  const currentTile = BOARD_TILES[currentPlayer.pos]
-    ? formatTile(BOARD_TILES[currentPlayer.pos], currentPlayer.pos)
-    : undefined;
+  // Determine which tile info to show in the modal
+  const currentTile = useMemo(() => {
+    if (mineHit) return MINE_TRIGGER_TILE;
+    return BOARD_TILES[currentPlayer.pos]
+      ? formatTile(BOARD_TILES[currentPlayer.pos], currentPlayer.pos)
+      : undefined;
+  }, [currentPlayer.pos, mineHit]);
 
-  // Logica functies
   const addSips = (playerIds: string[], amount: number) => {
     setPlayers((prev) =>
       prev.map((p) =>
@@ -77,41 +104,83 @@ export default function GameScreen() {
     setTurn((prev) => (prev + 1) % players.length);
     setDiceIcon("dice");
     setSelectedVictimIds([]);
+    setIsPlacingMine(false);
+    setMineHit(false);
+  };
+
+  const handlePlaceMine = (tileIndex: number) => {
+    if (!isPlacingMine) return;
+
+    setActiveMines((prev) => [
+      ...prev,
+      { tileIndex, ownerId: currentPlayer.id },
+    ]);
+    setPlayers((prev) =>
+      prev.map((p, idx) =>
+        idx === turn
+          ? {
+              ...p,
+              inventory: p.inventory.filter((item) => item !== "landmine"),
+            }
+          : p,
+      ),
+    );
+    setIsPlacingMine(false);
   };
 
   const animateMovement = (
     steps: number,
     playerIdx: number,
-    onComplete?: () => void,
+    onComplete?: (hitMine: boolean) => void,
   ) => {
     setIsMoving(true);
     let remaining = Math.abs(steps);
     const direction = steps > 0 ? 1 : -1;
+    let hitMine = false;
 
     const interval = setInterval(() => {
       setPlayers((prev) => {
         const newPlayers = [...prev];
         let nextPos = newPlayers[playerIdx].pos + direction;
 
-        // Bounds checking
         if (nextPos < 0) nextPos = 0;
         if (nextPos >= BOARD_TILES.length) nextPos = BOARD_TILES.length - 1;
 
         newPlayers[playerIdx] = { ...newPlayers[playerIdx], pos: nextPos };
+
+        // Check for mines (excluding mines placed by the current player)
+        const trap = activeMines.find(
+          (m) =>
+            m.tileIndex === nextPos && m.ownerId !== newPlayers[playerIdx].id,
+        );
+        if (trap) {
+          hitMine = true;
+        }
+
         return newPlayers;
       });
 
       remaining--;
-      if (remaining <= 0) {
+      // If we hit a mine, we stop moving immediately
+      if (remaining <= 0 || hitMine) {
         clearInterval(interval);
         setIsMoving(false);
-        onComplete?.();
+        onComplete?.(hitMine);
+
+        // Remove the mine after it's triggered
+        if (hitMine) {
+          setActiveMines((prev) =>
+            prev.filter(
+              (m) => m.tileIndex !== players[playerIdx].pos + direction,
+            ),
+          );
+        }
       }
     }, 400);
   };
 
   const rollDice = () => {
-    if (isRolling || isMoving || showChallenge) return;
+    if (isRolling || isMoving || showChallenge || isPlacingMine) return;
     setIsRolling(true);
     let i = 0;
     const interval = setInterval(() => {
@@ -124,41 +193,47 @@ export default function GameScreen() {
 
         setTimeout(
           () =>
-            animateMovement(roll, turn, () =>
-              setTimeout(() => {
-                setShowChallenge(true);
-              }, 400),
-            ),
+            animateMovement(roll, turn, (hit) => {
+              if (hit) setMineHit(true);
+              setTimeout(() => setShowChallenge(true), 400);
+            }),
           400,
         );
       }
     }, 100);
   };
 
-  // Logic when the modal is closed/confirmed
   const handleActionComplete = (victims?: string[]) => {
-    // 1. Handle sips if victims provided
-    if (victims && currentTile?.sipCount) {
-      addSips(victims, currentTile.sipCount);
+    // Check if player landed on landmine item tile (ID 15)
+    if (!mineHit && currentTile?.id === "15") {
+      setPlayers((prev) =>
+        prev.map((p, idx) =>
+          idx === turn ? { ...p, inventory: [...p.inventory, "landmine"] } : p,
+        ),
+      );
     }
 
-    // 2. Close modal first
+    if (victims && currentTile?.sipCount) {
+      addSips(victims, currentTile.sipCount);
+    } else if (mineHit) {
+      // If it was a mine hit and no victims selected, the current player drinks
+      addSips([currentPlayer.id], MINE_TRIGGER_TILE.sipCount!);
+    }
+
     setShowChallenge(false);
 
-    // 3. Handle movement if tile has moveAmount
-    if (currentTile?.moveAmount) {
-      // Small delay so the modal closes before movement starts
+    if (!mineHit && currentTile?.moveAmount) {
       setTimeout(() => {
-        animateMovement(currentTile.moveAmount!, turn, () => {
-          nextTurn();
+        animateMovement(currentTile.moveAmount!, turn, (hit) => {
+          if (hit) setMineHit(true);
+          if (hit) setShowChallenge(true);
+          else nextTurn();
         });
       }, 300);
     } else {
       nextTurn();
     }
   };
-
-  if (players.length === 0) return null;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -167,41 +242,27 @@ export default function GameScreen() {
           <ScrollView
             horizontal
             contentContainerStyle={styles.boardScrollContent}
-            showsHorizontalScrollIndicator={true}
           >
             <View style={styles.boardGrid}>
               {BOARD_TILES.map((tile, idx) => {
-                const tileObj = {
-                  id: tile.id?.toString() ?? String(idx),
-                  name:
-                    typeof tile.name === "string"
-                      ? tile.name
-                      : `Vakje ${idx + 1}`,
-                  icon: typeof tile.icon === "string" ? tile.icon : "star",
-                  description:
-                    typeof tile.description === "string"
-                      ? tile.description
-                      : "",
-                  actionType: tile.actionType as
-                    | import("@/constants/types").ActionType
-                    | undefined,
-                  sipCount:
-                    typeof tile.sipCount === "number" ? tile.sipCount : 0,
-                  sipsPerPlayer:
-                    "sipsPerPlayer" in tile &&
-                    typeof (tile as any).sipsPerPlayer === "number"
-                      ? (tile as any).sipsPerPlayer
-                      : undefined,
-                  moveAmount:
-                    typeof tile.moveAmount === "number" ? tile.moveAmount : 0,
-                };
+                const tileObj = formatTile(tile, idx);
+                const hasMine = activeMines.some((m) => m.tileIndex === idx);
+
                 return (
-                  <BoardTile
+                  <TouchableOpacity
                     key={tileObj.id}
-                    tile={tileObj}
-                    playersOnTile={players.filter((p) => p.pos === idx)}
-                    index={idx}
-                  />
+                    // Je kunt alleen klikken als je in de modus bent én er nog geen mijn ligt
+                    disabled={!isPlacingMine || hasMine}
+                    onPress={() => handlePlaceMine(idx)}
+                  >
+                    <BoardTile
+                      tile={tileObj}
+                      playersOnTile={players.filter((p) => p.pos === idx)}
+                      index={idx}
+                      isPlacingMode={isPlacingMine} // Activeert de previews rechtsonder
+                      hasMine={hasMine} // Activeert de rode border en solide badge
+                    />
+                  </TouchableOpacity>
                 );
               })}
             </View>
@@ -218,15 +279,33 @@ export default function GameScreen() {
             />
             <Text style={styles.turnText}>{currentPlayer.name}</Text>
             <View style={styles.sipBadge}>
-              <FontAwesome6 name="beer" size={14} color="#ff9800" />
-              <Text style={styles.sipText}>{currentPlayer.sips} slokken</Text>
+              <Text style={styles.sipText}>{currentPlayer.sips}</Text>
+              <FontAwesome6 name="wine-bottle" size={14} color="#ff9800" />
             </View>
           </View>
+
+          {/* Landmine Item Button */}
+          {currentPlayer.inventory.includes("landmine") &&
+            !isMoving &&
+            !isRolling && (
+              <TouchableOpacity
+                style={[
+                  styles.itemButton,
+                  isPlacingMine && styles.itemButtonActive,
+                ]}
+                onPress={() => setIsPlacingMine(!isPlacingMine)}
+              >
+                <FontAwesome6 name="land-mine-on" size={20} color="white" />
+                <Text style={styles.itemButtonText}>
+                  {isPlacingMine ? "Kies Vakje" : "Zet Val"}
+                </Text>
+              </TouchableOpacity>
+            )}
+
           <TouchableOpacity
-            testID="dice-button"
-            style={styles.diceButton}
+            style={[styles.diceButton, isPlacingMine && styles.disabledDice]}
             onPress={rollDice}
-            disabled={isRolling || isMoving}
+            disabled={isRolling || isMoving || isPlacingMine}
           >
             <FontAwesome6 name={diceIcon} size={40} color="white" />
           </TouchableOpacity>
@@ -262,6 +341,7 @@ const styles = StyleSheet.create({
     borderColor: "#222",
     alignItems: "center",
     justifyContent: "space-around",
+    paddingVertical: 20,
   },
   boardGrid: {
     flexDirection: "row",
@@ -293,7 +373,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginTop: 5,
   },
-  sipText: { color: "#ff9800", fontWeight: "bold", marginLeft: 6 },
+  sipText: {
+    color: "#ff9800",
+    fontWeight: "bold",
+    marginRight: 10,
+    fontSize: 20,
+  },
   diceButton: {
     width: 80,
     height: 80,
@@ -303,5 +388,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#FFF",
+  },
+  disabledDice: { opacity: 0.3 },
+  itemButton: {
+    alignItems: "center",
+    backgroundColor: "#444",
+    padding: 10,
+    borderRadius: 12,
+    width: 80,
+  },
+  itemButtonActive: {
+    backgroundColor: "#e74c3c",
+    borderWidth: 1,
+    borderColor: "white",
+  },
+  itemButtonText: {
+    color: "white",
+    fontSize: 10,
+    marginTop: 4,
+    fontWeight: "bold",
+  },
+  placingHighlight: { borderColor: "#e74c3c", borderWidth: 2 },
+  mineIndicator: {
+    position: "absolute",
+    bottom: -5,
+    right: -5,
+    backgroundColor: "black",
+    borderRadius: 10,
+    padding: 2,
+    borderWidth: 1,
+    borderColor: "red",
   },
 });

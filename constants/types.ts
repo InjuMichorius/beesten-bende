@@ -3,6 +3,7 @@ export type Player = {
   name: string;
   pos: number;
   sips: number;
+  inventory: string[];
 };
 
 export type ActionType = "self" | "give" | "everyone" | "info";
