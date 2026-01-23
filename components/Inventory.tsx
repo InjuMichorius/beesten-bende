@@ -1,5 +1,5 @@
-// components/Inventory.tsx
-import { ITEMS } from "@/constants/GameConfig";
+import { ITEMS } from "@/constants/ITEMS";
+
 import { FontAwesome6 } from "@expo/vector-icons";
 import React from "react";
 import {

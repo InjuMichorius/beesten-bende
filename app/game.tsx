@@ -1,6 +1,8 @@
+import { BOARD_TILES } from "@/constants/BOARD_TILES";
+import { ITEMS } from "@/constants/ITEMS";
+
 import { BoardTile } from "@/components/BoardTile";
 import { ChallengeModal } from "@/components/ChallengeModal";
-import { BOARD_TILES, ITEMS } from "@/constants/GameConfig";
 import { ActionType, Player, Tile } from "@/constants/types";
 import { FontAwesome6 } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
