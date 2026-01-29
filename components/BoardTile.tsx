@@ -1,5 +1,5 @@
 import { Player, Tile } from "@/constants/types";
-import { FontAwesome6 } from "@expo/vector-icons";
+import { DynamicIcon } from "@/helpers/DynamicIcon";
 import React from "react";
 import { Image, StyleSheet, View } from "react-native";
 
@@ -40,7 +40,7 @@ export const BoardTile = ({
           />
         ))}
       </View>
-      <FontAwesome6 name={tile.icon} size={22} color="white" />
+      <DynamicIcon name={tile.icon ?? ""} size={22} color="white" />
 
       {(hasMine || (isPlacingMode && !hasMine)) && (
         <View
@@ -49,7 +49,7 @@ export const BoardTile = ({
             hasMine ? styles.mineBadgeActive : styles.mineBadgePreview,
           ]}
         >
-          <FontAwesome6
+          <DynamicIcon
             name="land-mine-on"
             size={12}
             color={hasMine ? "#e74c3c" : "rgba(231, 76, 60, 0.6)"}

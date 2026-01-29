@@ -12,6 +12,12 @@ export const ITEMS: Record<string, InventoryItem> = {
     icon: "land-mine-on",
     color: "#e74c3c",
   },
+  sword: {
+    id: "sword",
+    name: "Zwaard",
+    icon: "sword",
+    color: "#e74c3c",
+  },
   // Hier kun je later makkelijk items toevoegen:
   // shield: { id: "shield", name: "Schild", icon: "shield-halved", color: "#3498db" },
 };

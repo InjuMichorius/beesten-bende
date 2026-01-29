@@ -12,7 +12,7 @@ const FINISH_TILE: Tile = {
   id: 999,
   name: "Finish",
   icon: "flag-checkered",
-  actionType: "info",
+  actionType: "none",
   description: "Gefeliciteerd! Je hebt de drank-marathon overleefd.",
 };
 

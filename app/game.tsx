@@ -1,10 +1,12 @@
 import { BoardTile } from "@/components/BoardTile";
 import { ChallengeModal } from "@/components/ChallengeModal";
+import { EndGameOverlay } from "@/components/EndGameOverlay";
 import { BOARD_TILES } from "@/constants/BOARD_TILES";
 import { ITEMS } from "@/constants/ITEMS";
 import { ActionType, Player, Tile } from "@/constants/types";
+import { DynamicIcon } from "@/helpers/DynamicIcon";
 import { FontAwesome6 } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
@@ -75,7 +77,7 @@ const Inventory = ({ items, activeItemId, onItemPress, isDisabled }: any) => {
               onPress={() => onItemPress(itemId)}
               disabled={isDisabled}
             >
-              <FontAwesome6
+              <DynamicIcon
                 name={item.icon}
                 size={16}
                 color={isActive ? item.color : "white"}
@@ -107,6 +109,7 @@ export default function GameScreen() {
   const [players, setPlayers] = useState<(Player & { inventory: string[] })[]>(
     [],
   );
+  const [gameFinished, setGameFinished] = useState(false);
   const [turn, setTurn] = useState(0);
   const [showChallenge, setShowChallenge] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
@@ -171,6 +174,21 @@ export default function GameScreen() {
     setMineHit(false);
   };
 
+  const handleRestart = () => {
+    setPlayers((prev) =>
+      prev.map((p) => ({ ...p, pos: 0, sips: 0, inventory: [] })),
+    );
+    setTurn(0);
+    setGameFinished(false);
+    setActiveMines([]);
+    scrollToTile(0);
+  };
+
+  const handleBackToStart = () => {
+    // router.replace("/") stuurt de gebruiker terug naar het begin (index.tsx)
+    router.replace("/");
+  };
+
   const handleItemAction = (itemId: string) => {
     setActiveItemId(activeItemId === itemId ? null : itemId);
   };
@@ -204,6 +222,7 @@ export default function GameScreen() {
     setIsMoving(true);
     let remaining = Math.abs(steps);
     const direction = steps > 0 ? 1 : -1;
+
     let trapTriggered = false;
 
     const interval = setInterval(() => {
@@ -211,6 +230,12 @@ export default function GameScreen() {
         const newPlayers = [...prev];
         const player = newPlayers[playerIdx];
         let nextPos = player.pos + direction;
+
+        if (nextPos >= board.length - 1) {
+          nextPos = board.length - 1;
+          remaining = 0;
+          setTimeout(() => setGameFinished(true), 800);
+        }
 
         // Veiligheidscheck voor array grenzen
         if (nextPos < 0) {
@@ -401,6 +426,14 @@ export default function GameScreen() {
           }
           onConfirm={(ids) => handleActionComplete(ids)}
           onClose={() => handleActionComplete()}
+        />
+      )}
+
+      {gameFinished && (
+        <EndGameOverlay
+          players={players}
+          onRestart={handleRestart}
+          onPickNew={handleBackToStart}
         />
       )}
     </SafeAreaView>

@@ -1,5 +1,5 @@
 import { Player, Tile } from "@/constants/types";
-import { FontAwesome6 } from "@expo/vector-icons";
+import { DynamicIcon } from "@/helpers/DynamicIcon";
 import React from "react";
 import {
   Image,
@@ -29,10 +29,9 @@ export const ChallengeModal = ({
   onConfirm,
   onClose,
 }: ChallengeModalProps) => {
+  if (!tile.actionType || tile.actionType === "none") return null;
   const isGiveAction =
     tile.actionType === "give" || tile.actionType === "everyone";
-
-  const hasMovement = tile.moveAmount !== undefined && tile.moveAmount !== 0;
 
   const getButtonText = () => {
     if (selectedVictimIds.length === 0) return "Kies slachtoffer(s)";
@@ -53,23 +52,9 @@ export const ChallengeModal = ({
   return (
     <View style={styles.fullScreenOverlay}>
       <View style={styles.modalContent}>
-        <FontAwesome6 name={tile.icon || "star"} size={40} color="white" />
+        <DynamicIcon name={tile.icon || "star"} size={40} color="white" />
         <Text style={styles.modalTitle}>{tile.name}</Text>
         <Text style={styles.modalDesc}>{tile.description}</Text>
-
-        {hasMovement && (
-          <View style={styles.moveBadge}>
-            <FontAwesome6
-              name={tile.moveAmount! > 0 ? "walking" : "undo-alt"}
-              size={14}
-              color="white"
-            />
-            <Text style={styles.moveText}>
-              {tile.moveAmount! > 0 ? `+${tile.moveAmount}` : tile.moveAmount}{" "}
-              stappen
-            </Text>
-          </View>
-        )}
 
         {isGiveAction ? (
           <View style={styles.giveContainer}>
