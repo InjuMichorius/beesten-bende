@@ -7,10 +7,16 @@ import { ActionType, Player, Tile } from "@/constants/types";
 import { DynamicIcon } from "@/helpers/DynamicIcon";
 import { FontAwesome6 } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
-  Dimensions,
   Image,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -19,9 +25,6 @@ import {
   View,
 } from "react-native";
 import { generateBoard } from "../utils/BoardGenerator";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const LEFT_PANEL_WIDTH = SCREEN_WIDTH - 180;
 
 const DICE_ICONS = [
   "dice-one",
@@ -104,7 +107,6 @@ export default function GameScreen() {
 
   const scrollRef = useRef<ScrollView>(null);
   const tilePositions = useRef<{ [key: number]: number }>({});
-  const currentScrollX = useRef(0);
 
   const [players, setPlayers] = useState<(Player & { inventory: string[] })[]>(
     [],
@@ -141,22 +143,25 @@ export default function GameScreen() {
     inventory: [],
   };
 
-  // De verbeterde scroll functie
   const scrollToTile = (tileIndex: number, animated = true) => {
     const xPos = tilePositions.current[tileIndex];
     if (xPos !== undefined && scrollRef.current) {
-      scrollRef.current.scrollTo({
-        x: Math.max(0, xPos - 40), // 40px padding vanaf de linker rand
-        animated,
-      });
+      scrollRef.current.scrollTo({ x: Math.max(0, xPos - 40), animated });
     }
   };
 
-  // Focus bij start van de beurt
   useEffect(() => {
     const timer = setTimeout(() => scrollToTile(currentPlayer.pos), 250);
     return () => clearTimeout(timer);
-  }, [turn]);
+  }, [currentPlayer.pos]);
+
+  const triggerChallenge = useCallback((isMineHit: boolean) => {
+    // We zetten eerst de mineHit status en daarna pas de modal op true
+    // om er zeker van te zijn dat de currentTile memo de juiste data pakt
+    setMineHit(isMineHit);
+    // Use a timeout to ensure the state is updated before showing the modal
+    setTimeout(() => setShowChallenge(true), 0);
+  }, []);
 
   const addSips = (playerIds: string[], amount: number) => {
     setPlayers((prev) =>
@@ -185,7 +190,6 @@ export default function GameScreen() {
   };
 
   const handleBackToStart = () => {
-    // router.replace("/") stuurt de gebruiker terug naar het begin (index.tsx)
     router.replace("/");
   };
 
@@ -214,65 +218,53 @@ export default function GameScreen() {
     setActiveItemId(null);
   };
 
-  const animateMovement = (
-    steps: number,
-    playerIdx: number,
-    onComplete?: (hitMine: boolean) => void,
-  ) => {
-    setIsMoving(true);
-    let remaining = Math.abs(steps);
-    const direction = steps > 0 ? 1 : -1;
+  const animateMovement = useCallback(
+    (
+      steps: number,
+      playerIdx: number,
+      onComplete?: (hitMine: boolean) => void,
+    ) => {
+      if (!players[playerIdx]) return;
+      setIsMoving(true);
+      let remaining = Math.abs(steps);
+      const direction = steps > 0 ? 1 : -1;
+      let currentPosTracker = players[playerIdx].pos;
 
-    let trapTriggered = false;
+      const interval = setInterval(() => {
+        currentPosTracker += direction;
 
-    const interval = setInterval(() => {
-      setPlayers((prev) => {
-        const newPlayers = [...prev];
-        const player = newPlayers[playerIdx];
-        let nextPos = player.pos + direction;
+        if (currentPosTracker >= board.length - 1)
+          currentPosTracker = board.length - 1;
+        if (currentPosTracker < 0) currentPosTracker = 0;
 
-        if (nextPos >= board.length - 1) {
-          nextPos = board.length - 1;
-          remaining = 0;
-          setTimeout(() => setGameFinished(true), 800);
+        setPlayers((prev) => {
+          const newPlayers = [...prev];
+          if (newPlayers[playerIdx]) {
+            newPlayers[playerIdx] = {
+              ...newPlayers[playerIdx],
+              pos: currentPosTracker,
+            };
+          }
+          return newPlayers;
+        });
+
+        scrollToTile(currentPosTracker, true);
+        remaining--;
+
+        if (remaining <= 0) {
+          clearInterval(interval);
+          setTimeout(() => {
+            setIsMoving(false);
+            const hit = activeMines.some(
+              (m) => m.tileIndex === currentPosTracker,
+            );
+            onComplete?.(hit);
+          }, 300);
         }
-
-        // Veiligheidscheck voor array grenzen
-        if (nextPos < 0) {
-          nextPos = 0;
-          remaining = 0;
-        }
-        if (nextPos >= board.length) {
-          nextPos = board.length - 1;
-          remaining = 0;
-        }
-
-        newPlayers[playerIdx] = { ...player, pos: nextPos };
-
-        // Scroll mee tijdens het lopen
-        scrollToTile(nextPos, true);
-
-        const trap = activeMines.find(
-          (m) => m.tileIndex === nextPos && m.ownerId !== player.id,
-        );
-        if (trap) {
-          trapTriggered = true;
-          remaining = 0;
-        }
-        return newPlayers;
-      });
-
-      remaining--;
-
-      if (remaining <= 0) {
-        clearInterval(interval);
-        setTimeout(() => {
-          setIsMoving(false);
-          onComplete?.(trapTriggered);
-        }, 150);
-      }
-    }, 450); // Iets rustiger tempo voor stabiliteit
-  };
+      }, 450);
+    },
+    [board.length, activeMines, players],
+  );
 
   const rollDice = () => {
     if (isRolling || isMoving || showChallenge || activeItemId) return;
@@ -285,49 +277,79 @@ export default function GameScreen() {
         const roll = Math.floor(Math.random() * 6) + 1;
         setDiceIcon(DICE_ICONS[roll - 1]);
         setIsRolling(false);
-        setTimeout(
-          () =>
-            animateMovement(roll, turn, (hit) => {
-              if (hit) setMineHit(true);
-              setTimeout(() => setShowChallenge(true), 400);
-            }),
-          400,
-        );
+        setTimeout(() => {
+          animateMovement(roll, turn, (hit) => {
+            triggerChallenge(hit);
+          });
+        }, 400);
       }
     }, 100);
   };
 
   const handleActionComplete = (victims?: string[]) => {
-    if (!mineHit && currentTile?.icon === "land-mine-on") {
+    if (mineHit) {
+      addSips([currentPlayer.id], MINE_TRIGGER_TILE.sipCount!);
+      setActiveMines((prev) =>
+        prev.filter((m) => m.tileIndex !== currentPlayer.pos),
+      );
+      setShowChallenge(false);
+      // Even wachten zodat de state rustig kan updaten voordat de volgende beurt begint
+      setTimeout(nextTurn, 100);
+      return;
+    }
+
+    if (currentTile?.icon === "land-mine-on") {
       setPlayers((prev) =>
         prev.map((p, idx) =>
           idx === turn ? { ...p, inventory: [...p.inventory, "landmine"] } : p,
         ),
       );
     }
+
     if (victims && currentTile?.sipCount) {
       addSips(victims, currentTile.sipCount);
-    } else if (mineHit) {
-      addSips([currentPlayer.id], MINE_TRIGGER_TILE.sipCount!);
     }
 
     setShowChallenge(false);
 
-    if (!mineHit && currentTile?.moveAmount) {
-      setTimeout(() => {
-        animateMovement(currentTile.moveAmount!, turn, (hit) => {
-          if (hit) {
-            setMineHit(true);
-            setShowChallenge(true);
-          } else {
-            nextTurn();
-          }
-        });
-      }, 300);
+    if (currentTile?.moveAmount) {
+      setTimeout(
+        () =>
+          animateMovement(currentTile.moveAmount!, turn, (hit) =>
+            triggerChallenge(hit),
+          ),
+        300,
+      );
     } else {
       nextTurn();
     }
   };
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === "1") {
+        if (isRolling || isMoving || showChallenge || activeItemId) return;
+        setDiceIcon(DICE_ICONS[0]);
+        // Now using memoized functions
+        animateMovement(1, turn, (hit) => {
+          triggerChallenge(hit);
+        });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, [
+    isRolling,
+    isMoving,
+    showChallenge,
+    activeItemId,
+    turn,
+    animateMovement,
+    triggerChallenge,
+  ]);
 
   const currentTile = useMemo(() => {
     if (mineHit) return MINE_TRIGGER_TILE;
@@ -348,9 +370,6 @@ export default function GameScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             scrollEventThrottle={16}
-            onScroll={(e) => {
-              currentScrollX.current = e.nativeEvent.contentOffset.x;
-            }}
             contentContainerStyle={styles.boardScrollContent}
           >
             <View style={styles.boardGrid}>
@@ -403,7 +422,6 @@ export default function GameScreen() {
           />
 
           <TouchableOpacity
-            testID="dice-button"
             style={[styles.diceButton, !!activeItemId && styles.disabledDice]}
             onPress={rollDice}
             disabled={isRolling || isMoving || !!activeItemId}
