@@ -41,6 +41,7 @@ const MINE_TRIGGER_TILE: Tile = {
   description: "Je bent op een landmijn gestapt! Neem 5 slokken.",
   icon: "bomb",
   sipCount: 5,
+  actionType: "modal",
 };
 
 const formatTile = (tile: any, index: number): Tile => {
@@ -222,7 +223,7 @@ export default function GameScreen() {
     (
       steps: number,
       playerIdx: number,
-      onComplete?: (hitMine: boolean) => void,
+      onComplete?: (hitMine: boolean, shouldContinue: boolean) => void,
     ) => {
       if (!players[playerIdx]) return;
       setIsMoving(true);
@@ -255,15 +256,24 @@ export default function GameScreen() {
           clearInterval(interval);
           setTimeout(() => {
             setIsMoving(false);
-            const hit = activeMines.some(
+            const mine = activeMines.find(
               (m) => m.tileIndex === currentPosTracker,
             );
-            onComplete?.(hit);
+            const hit = !!mine;
+
+            const tileOnPos = board[currentPosTracker];
+            const hasTileChallenge =
+              (tileOnPos?.actionType &&
+                tileOnPos.actionType !== "none" &&
+                tileOnPos.actionType !== "info") ||
+              tileOnPos?.moveAmount;
+
+            onComplete?.(hit, !hit && !hasTileChallenge);
           }, 300);
         }
       }, 450);
     },
-    [board.length, activeMines, players],
+    [board, activeMines, players],
   );
 
   const rollDice = () => {
@@ -278,8 +288,12 @@ export default function GameScreen() {
         setDiceIcon(DICE_ICONS[roll - 1]);
         setIsRolling(false);
         setTimeout(() => {
-          animateMovement(roll, turn, (hit) => {
-            triggerChallenge(hit);
+          animateMovement(roll, turn, (hit, shouldContinue) => {
+            if (shouldContinue) {
+              nextTurn();
+            } else {
+              triggerChallenge(hit);
+            }
           });
         }, 400);
       }
@@ -315,9 +329,9 @@ export default function GameScreen() {
     if (currentTile?.moveAmount) {
       setTimeout(
         () =>
-          animateMovement(currentTile.moveAmount!, turn, (hit) =>
-            triggerChallenge(hit),
-          ),
+          animateMovement(currentTile.moveAmount!, turn, (hit) => {
+            triggerChallenge(hit);
+          }),
         300,
       );
     } else {
