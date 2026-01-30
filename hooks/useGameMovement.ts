@@ -24,52 +24,49 @@ export const useGameMovement = (
       scrollToTile: (pos: number) => void,
       onComplete: (finalPos: number) => void,
     ) => {
-      // Als we 0 stappen moeten zetten, zijn we direct klaar
       if (steps === 0) {
-        onComplete(0); // We gaan ervan uit dat we op de huidige plek blijven
+        onComplete(0);
         return;
       }
 
       setIsMoving(true);
-      let remaining = Math.abs(steps);
+      let stepsTaken = 0;
+      const totalSteps = Math.abs(steps);
       const direction = steps > 0 ? 1 : -1;
-      let latestPos = 0;
 
       const interval = setInterval(() => {
+        let currentPos = 0;
         setPlayers((prev: any[]) => {
           const newPlayers = [...prev];
-          let newPos = newPlayers[turn].pos + direction;
-
-          // Grenzen bewaken: niet voorbij de finish, niet vóór de start
-          if (newPos >= board.length) newPos = board.length - 1;
-          if (newPos < 0) newPos = 0;
-
-          newPlayers[turn] = { ...newPlayers[turn], pos: newPos };
-          latestPos = newPos;
-          scrollToTile(newPos);
+          const p = { ...newPlayers[turn] };
+          let nPos = p.pos + direction;
+          if (nPos >= board.length) nPos = board.length - 1;
+          if (nPos < 0) nPos = 0;
+          p.pos = nPos;
+          newPlayers[turn] = p;
+          currentPos = nPos;
+          scrollToTile(nPos);
           return newPlayers;
         });
 
-        remaining--;
-        if (remaining <= 0) {
+        stepsTaken++;
+        if (stepsTaken >= totalSteps) {
           clearInterval(interval);
           setTimeout(() => {
             setIsMoving(false);
-            onComplete(latestPos);
+            onComplete(currentPos);
           }, 300);
         }
-      }, 450);
+      }, 350);
     },
     [board.length, turn, setPlayers],
   );
 
-  // Nieuwe functie die het rollen EN bewegen combineert
   const rollAndMove = (
     scrollToTile: (pos: number) => void,
     onLanded: (finalPos: number) => void,
   ) => {
     if (isRolling || isMoving) return;
-
     setIsRolling(true);
     let i = 0;
     const interval = setInterval(() => {
@@ -79,13 +76,9 @@ export const useGameMovement = (
         const roll = Math.floor(Math.random() * 6) + 1;
         setDiceIcon(DICE_ICONS[roll - 1]);
         setIsRolling(false);
-
-        // Korte pauze na de roll voor het effect, dan bewegen
-        setTimeout(() => {
-          animateMovement(roll, scrollToTile, onLanded);
-        }, 500);
+        setTimeout(() => animateMovement(roll, scrollToTile, onLanded), 400);
       }
-    }, 100);
+    }, 80);
   };
 
   return { isRolling, isMoving, diceIcon, rollAndMove, animateMovement };

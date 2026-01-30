@@ -31,7 +31,7 @@ export const BOARD_TILES: Tile[] = [
     description:
       "Je hebt een landmijn gevonden! Leg deze voor het rollen van de dobbelsteen in om een valstrik te zetten voor andere spelers",
     actionType: "modal",
-    occurrence: 5,
+    occurrence: 8,
   },
   {
     id: 2,
@@ -146,24 +146,24 @@ export const BOARD_TILES: Tile[] = [
       "Je mag iemand uitkiezen die vanaf nu al je slokken meedrinkt.",
     actionType: "modal",
   },
-  {
-    id: 15,
-    name: "Item!",
-    icon: "ex-sword",
-    description:
-      "Je hebt een zwaard gevonden! Gebruik dit op spelers in de buurt 3 slokken te laten drinken.",
-    actionType: "modal",
-    occurrence: 5,
-  },
-  {
-    id: 16,
-    name: "Item!",
-    icon: "ex-bow-arrow",
-    description:
-      "Je hebt een boog met pijlen gevonden! Gebruik dit op spelers in de buurt 3 slokken te laten drinken.",
-    actionType: "modal",
-    occurrence: 5,
-  },
+  // {
+  //   id: 15,
+  //   name: "Item!",
+  //   icon: "ex-sword",
+  //   description:
+  //     "Je hebt een zwaard gevonden! Gebruik dit op spelers in de buurt 3 slokken te laten drinken.",
+  //   actionType: "modal",
+  //   occurrence: 5,
+  // },
+  // {
+  //   id: 16,
+  //   name: "Item!",
+  //   icon: "ex-bow-arrow",
+  //   description:
+  //     "Je hebt een boog met pijlen gevonden! Gebruik dit op spelers in de buurt 3 slokken te laten drinken.",
+  //   actionType: "modal",
+  //   occurrence: 5,
+  // },
   {
     id: 17,
     name: "Drink je glas in 20 seconden leeg!",

@@ -1,5 +1,5 @@
 import { GameBoard } from "@/components/GameBoard";
-import { ModalsLayer } from "@/components/ModalsLayer"; // Import this
+import { ModalsLayer } from "@/components/ModalsLayer";
 import { PlayerSidebar } from "@/components/PlayerSidebar";
 import { Tile } from "@/constants/types";
 import { useBoardState } from "@/hooks/useBoardState";
@@ -27,11 +27,11 @@ export default function GameScreen() {
     nextTurn,
     addSips,
     gameFinished,
+    setGameFinished, // Zorg dat dit in je useGameState hook zit
     handleRestart,
   } = useGameState();
-  const { board, activeMines, handlePlaceMine, removeMine } = useBoardState();
 
-  // Create a ref to access GameBoard's scrollToTile method
+  const { board, activeMines, handlePlaceMine, removeMine } = useBoardState();
   const boardRef = useRef<any>(null);
 
   const { isMoving, diceIcon, rollAndMove, animateMovement } = useGameMovement(
@@ -40,9 +40,9 @@ export default function GameScreen() {
     turn,
   );
 
-  // Local state for modals (can eventually move to useGameState)
   const [showChallenge, setShowChallenge] = useState(false);
   const [currentTile, setCurrentTile] = useState<any>(null);
+
   const {
     activeItemId,
     toggleItem,
@@ -55,6 +55,14 @@ export default function GameScreen() {
 
   const handleLanded = useCallback(
     (finalPos: number) => {
+      // --- END GAME LOGIC ---
+      // Als de speler op of over het laatste vakje is
+      if (finalPos >= board.length - 1) {
+        setGameFinished(true);
+        return;
+      }
+      // ----------------------
+
       const landedTile = board[finalPos];
       const hitMine = activeMines.find((m) => m.tileIndex === finalPos);
 
@@ -85,6 +93,7 @@ export default function GameScreen() {
       nextTurn,
       addSips,
       removeMine,
+      setGameFinished,
     ],
   );
 
@@ -92,11 +101,51 @@ export default function GameScreen() {
     rollAndMove((pos) => boardRef.current?.scrollToTile(pos), handleLanded);
   };
 
+  const handleActionCompletion = useCallback(
+    (victims: string[]) => {
+      const moveAmount = currentTile?.moveAmount;
+      const sips = currentTile?.sipCount || 0;
+
+      setShowChallenge(false);
+      if (victims.length > 0) {
+        addSips(victims, sips);
+      }
+
+      if (moveAmount && moveAmount !== 0) {
+        setTimeout(() => {
+          animateMovement(
+            moveAmount,
+            (pos) => boardRef.current?.scrollToTile(pos),
+            (newPos) => {
+              // Ook na een bonus-verplaatsing checken of we er zijn
+              if (newPos >= board.length - 1) {
+                setGameFinished(true);
+              } else {
+                nextTurn();
+              }
+            },
+          );
+        }, 500);
+      } else {
+        nextTurn();
+      }
+    },
+    [
+      currentTile,
+      addSips,
+      animateMovement,
+      nextTurn,
+      board.length,
+      setGameFinished,
+    ],
+  );
+
   useEffect(() => {
     if (currentPlayer?.pos !== undefined && boardRef.current) {
-      const timer = setTimeout(() => {
-        boardRef.current.scrollToTile(currentPlayer.pos);
-      }, 100);
+      const timer = setTimeout(
+        () => boardRef.current.scrollToTile(currentPlayer.pos),
+        100,
+      );
       return () => clearTimeout(timer);
     }
   }, [currentPlayer?.pos, turn]);
@@ -111,23 +160,20 @@ export default function GameScreen() {
           board={board}
           players={players}
           activeMines={activeMines}
-          isPlacingMine={isPlacingMine} // Gebruik nu de variabele uit de hook
+          isPlacingMine={isPlacingMine}
           onPlaceMine={(idx) => {
             handlePlaceMine(idx, currentPlayer.id);
-            removeItemFromCurrentPlayer("landmine"); // Verwijder uit inventory na plaatsen
+            removeItemFromCurrentPlayer("landmine");
           }}
         />
 
         <PlayerSidebar
-          key={`player-${turn}-${currentPlayer?.sips}`}
+          key={`sidebar-${turn}`}
           currentPlayer={currentPlayer}
           diceIcon={diceIcon}
           onRoll={handleRoll}
           isBusy={isMoving}
-          inventoryProps={{
-            activeItemId: activeItemId,
-            onItemPress: toggleItem,
-          }}
+          inventoryProps={{ activeItemId, onItemPress: toggleItem }}
         />
       </View>
 
@@ -137,28 +183,8 @@ export default function GameScreen() {
         currentTile={currentTile}
         players={players}
         currentPlayer={currentPlayer}
-        onConfirmChallenge={(victims: string[]) => {
-          addSips(victims, currentTile?.sipCount || 0);
-          setShowChallenge(false);
-
-          if (currentTile?.moveAmount) {
-            setTimeout(() => {
-              animateMovement(
-                currentTile.moveAmount,
-                (pos) => boardRef.current?.scrollToTile(pos),
-                () => {
-                  nextTurn();
-                },
-              );
-            }, 400);
-          } else {
-            nextTurn();
-          }
-        }}
-        onCloseChallenge={() => {
-          setShowChallenge(false);
-          nextTurn();
-        }}
+        onConfirmChallenge={(victims) => handleActionCompletion(victims)}
+        onCloseChallenge={() => handleActionCompletion([])}
         onRestart={handleRestart}
         onExit={() => router.replace("/")}
       />
