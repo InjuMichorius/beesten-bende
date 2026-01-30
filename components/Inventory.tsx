@@ -1,20 +1,19 @@
 import { ITEMS } from "@/constants/ITEMS";
-
-import { FontAwesome6 } from "@expo/vector-icons";
+import { DynamicIcon } from "@/helpers/DynamicIcon";
 import React from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 interface InventoryProps {
   items: string[];
   activeItemId: string | null;
   onItemPress: (itemId: string) => void;
-  isDisabled: boolean;
+  isDisabled?: boolean;
 }
 
 export const Inventory = ({
@@ -23,19 +22,15 @@ export const Inventory = ({
   onItemPress,
   isDisabled,
 }: InventoryProps) => {
-  if (items.length === 0) return null;
+  if (!items || items.length === 0) return null;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Inventory</Text>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <Text style={styles.header}>Inventory</Text>
+      <ScrollView contentContainerStyle={styles.list}>
         {items.map((itemId, index) => {
           const item = ITEMS[itemId];
           if (!item) return null;
-
           const isActive = activeItemId === itemId;
 
           return (
@@ -45,22 +40,22 @@ export const Inventory = ({
                 styles.itemCard,
                 isActive && {
                   borderColor: item.color,
-                  backgroundColor: `${item.color}33`,
+                  backgroundColor: `${item.color}22`,
                 },
-                isDisabled && styles.disabled,
+                isDisabled && { opacity: 0.5 },
               ]}
               onPress={() => onItemPress(itemId)}
               disabled={isDisabled}
             >
-              <FontAwesome6
+              <DynamicIcon
                 name={item.icon}
-                size={18}
+                size={16}
                 color={isActive ? item.color : "white"}
               />
               <Text
                 style={[styles.itemName, isActive && { color: item.color }]}
               >
-                {isActive ? "Cancel" : item.name}
+                {item.name}
               </Text>
             </TouchableOpacity>
           );
@@ -71,30 +66,25 @@ export const Inventory = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    width: "100%",
-    paddingHorizontal: 15,
-    maxHeight: 200,
-    marginTop: 20,
-  },
-  title: {
+  container: { width: "90%", flex: 1, marginTop: 20 },
+  header: {
     color: "#666",
     fontSize: 10,
     fontWeight: "bold",
-    marginBottom: 8,
+    marginBottom: 10,
     textTransform: "uppercase",
+    textAlign: "center",
   },
-  scrollContent: { gap: 8 },
+  list: { gap: 10 },
   itemCard: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#1a1a1a",
-    padding: 10,
-    borderRadius: 10,
+    padding: 12,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#333",
     gap: 10,
   },
-  itemName: { color: "white", fontSize: 11, fontWeight: "bold" },
-  disabled: { opacity: 0.5 },
+  itemName: { color: "white", fontSize: 12, fontWeight: "bold" },
 });
